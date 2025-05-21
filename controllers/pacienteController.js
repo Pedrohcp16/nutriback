@@ -1,59 +1,83 @@
-const fs = require('fs');
-const path = require('path');
-const DB_PATH = path.join(__dirname, '..', 'pacientes.json');
+const db = require('../db');
 
-// Função auxiliar para ler e salvar pacientes
-const lerPacientes = () => {
-  if (!fs.existsSync(DB_PATH)) return [];
-  return JSON.parse(fs.readFileSync(DB_PATH));
-};
-
-const salvarPacientes = (pacientes) => {
-  fs.writeFileSync(DB_PATH, JSON.stringify(pacientes, null, 2));
-};
-
+// ✅ NOVA função que retorna pacientes com serviços
 exports.listarPacientes = (req, res) => {
-  const pacientes = lerPacientes();
-  res.json(pacientes);
+  const sql = `
+    SELECT 
+      pacientes.id,
+      pacientes.nome,
+      pacientes.data,
+      servicos.servico,
+      servicos.horario,
+      servicos.preco
+    FROM pacientes
+    LEFT JOIN servicos ON pacientes.id = servicos.paciente_id
+    ORDER BY pacientes.id DESC
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Erro ao listar pacientes com serviços:', err);
+      return res.status(500).json({ error: 'Erro ao listar pacientes com serviços' });
+    }
+    res.json(results);
+  });
 };
 
+// ✅ Cadastrar novo paciente
 exports.cadastrarPaciente = (req, res) => {
-  const novoPaciente = { id: Date.now().toString(), ...req.body };
-  const pacientes = lerPacientes();
-  pacientes.push(novoPaciente);
-  salvarPacientes(pacientes);
-  res.status(201).json(novoPaciente);
+  const { nome, data } = req.body;
+  const sql = 'INSERT INTO pacientes (nome, data) VALUES (?, ?)';
+  db.query(sql, [nome, data], (err, result) => {
+    if (err) {
+      console.error('Erro ao cadastrar paciente:', err);
+      return res.status(500).json({ error: 'Erro ao cadastrar paciente' });
+    }
+    res.status(201).json({ id: result.insertId, nome, data });
+  });
 };
 
+// ✅ Obter um paciente por ID
 exports.obterPaciente = (req, res) => {
-  const pacientes = lerPacientes();
-  const paciente = pacientes.find(p => p.id === req.params.id);
-  if (paciente) {
-    res.json(paciente);
-  } else {
-    res.status(404).json({ message: 'Paciente não encontrado' });
-  }
+  const sql = 'SELECT * FROM pacientes WHERE id = ?';
+  db.query(sql, [req.params.id], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Erro ao buscar paciente' });
+    if (results.length === 0) return res.status(404).json({ message: 'Paciente não encontrado' });
+    res.json(results[0]);
+  });
 };
 
-exports.deletarPaciente = (req, res) => {
-  let pacientes = lerPacientes();
-  const novoArray = pacientes.filter(p => p.id !== req.params.id);
-  if (novoArray.length === pacientes.length) {
-    return res.status(404).json({ message: 'Paciente não encontrado' });
-  }
-  salvarPacientes(novoArray);
-  res.json({ message: 'Paciente removido' });
-};
-
+// ✅ Atualizar paciente
 exports.atualizarPaciente = (req, res) => {
-  let pacientes = lerPacientes();
-  const index = pacientes.findIndex(p => p.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Paciente não encontrado' });
-  }
-  pacientes[index] = { ...pacientes[index], ...req.body };
-  salvarPacientes(pacientes);
-  res.json(pacientes[index]);
+  const { nome, data } = req.body;
+  const { id } = req.params;
+
+  const sql = `
+    UPDATE pacientes
+    SET nome = ?, data = ?
+    WHERE id = ?
+  `;
+
+  db.query(sql, [nome, data, id], (err, result) => {
+    if (err) {
+      console.error('Erro ao atualizar paciente:', err);
+      return res.status(500).json({ error: 'Erro ao atualizar paciente' });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Paciente não encontrado' });
+    }
+
+    res.json({ message: 'Paciente atualizado com sucesso' });
+  });
 };
 
-
+// ✅ Deletar paciente
+exports.deletarPaciente = (req, res) => {
+  const sql = 'DELETE FROM pacientes WHERE id = ?';
+  db.query(sql, [req.params.id], (err, result) => {
+    if (err) return res.status(500).json({ error: 'Erro ao deletar paciente' });
+    if (result.affectedRows === 0) return res.status(404).json({ message: 'Paciente não encontrado' });
+    res.json({ message: 'Paciente removido com sucesso' });
+  });
+};
