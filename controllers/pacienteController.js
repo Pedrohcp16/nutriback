@@ -1,12 +1,27 @@
 const db = require('../db');
 
 // ✅ NOVA função que retorna pacientes com serviços
+// Listar apenas pacientes (sem serviços)
 exports.listarPacientes = (req, res) => {
+  const sql = 'SELECT * FROM pacientes ORDER BY id DESC';
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Erro ao listar pacientes:', err);
+      return res.status(500).json({ error: 'Erro ao listar pacientes' });
+    }
+    res.json(results);
+  });
+};
+
+// Listar pacientes com seus serviços (para relatórios ou uso específico)
+exports.listarPacientesComServicos = (req, res) => {
   const sql = `
     SELECT 
-      pacientes.id,
+      pacientes.id AS paciente_id,
       pacientes.nome,
       pacientes.data,
+      servicos.id AS servico_id,
       servicos.servico,
       servicos.horario,
       servicos.preco
@@ -23,6 +38,8 @@ exports.listarPacientes = (req, res) => {
     res.json(results);
   });
 };
+
+
 
 // ✅ Cadastrar novo paciente
 exports.cadastrarPaciente = (req, res) => {

@@ -20,23 +20,15 @@ exports.listarServicos = (req, res) => {
 
 // Cadastrar novo serviço
 exports.cadastrarServico = (req, res) => {
-  const { paciente_id, servico, data, horario, preco } = req.body;
+  const { paciente_id, servico, horario, preco } = req.body;
 
-  const sql = 'INSERT INTO servicos (paciente_id, servico, data, horario, preco) VALUES (?, ?, ?, ?, ?)';
-  db.query(sql, [paciente_id, servico, data, horario, preco], (err, result) => {
+  const sql = 'INSERT INTO servicos (paciente_id, servico, horario, preco) VALUES (?, ?, ?, ?)';
+  db.query(sql, [paciente_id, servico, horario, preco], (err, result) => {
     if (err) {
       console.error('Erro ao cadastrar serviço:', err);
       return res.status(500).json({ error: 'Erro ao cadastrar serviço' });
     }
-
-    res.status(201).json({
-      id: result.insertId,
-      paciente_id,
-      servico,
-      data,
-      horario,
-      preco
-    });
+    res.status(201).json({ id: result.insertId });
   });
 };
 
